@@ -1285,6 +1285,7 @@ function handleFileImport(e) {
   reader.onload = ev => {
     const result = applyImport(parseCsvToShows(ev.target.result), mode);
     showImportResult('fileImportResult', result);
+    fetchMissingPosters();
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -1314,6 +1315,7 @@ async function handleUrlImport() {
     const text = await res.text();
     const result = applyImport(parseCsvToShows(text), mode);
     showImportResult('urlImportResult', result);
+    fetchMissingPosters();
     document.getElementById('csvUrlInput').value = '';
   } catch (err) {
     const el = document.getElementById('urlImportResult');
@@ -1322,6 +1324,42 @@ async function handleUrlImport() {
     el.style.display = 'block';
   } finally {
     spinner.classList.remove('active');
+  }
+}
+
+// ── Poster fetcher ────────────────────────────────────────────────────────────
+// Fetches missing poster images (and year/status/summary) from TVMaze for any
+// show that was imported from CSV and has a tvMazeId but no image.
+async function fetchMissingPosters() {
+  const missing = shows.filter(s => s.tvMazeId > 0 && !s.image);
+  if (!missing.length) return;
+
+  let updated = 0;
+  for (let i = 0; i < missing.length; i += 5) {
+    const batch = missing.slice(i, i + 5);
+    await Promise.all(batch.map(async s => {
+      try {
+        const res = await fetch(`https://api.tvmaze.com/shows/${s.tvMazeId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const entry = shows.find(x => x.id === s.id);
+        if (!entry) return;
+        entry.image      = data.image?.medium || data.image?.original || null;
+        entry.year       = entry.year       || (data.premiered ? data.premiered.slice(0, 4) : '');
+        entry.showStatus = entry.showStatus || data.status || '';
+        entry.summary    = entry.summary    || (data.summary || '').replace(/<[^>]+>/g, '');
+        entry.network    = entry.network    || data.network?.name || data.webChannel?.name || '';
+        if (entry.image) updated++;
+      } catch { /* skip failed fetches */ }
+    }));
+    // Small delay between batches to be polite to the TVMaze API
+    if (i + 5 < missing.length) await new Promise(r => setTimeout(r, 300));
+  }
+
+  if (updated) {
+    save();
+    renderLists();
+    toast('🖼', `Loaded ${updated} poster${updated !== 1 ? 's' : ''}`);
   }
 }
 
@@ -1346,6 +1384,7 @@ function esc(s) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 load();
 renderLists();
+fetchMissingPosters();
 </script>
 </body>
 </html>
