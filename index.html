@@ -358,6 +358,10 @@
     /* ── Import / Export panel ── */
     .io-panel { display: flex; flex-direction: column; gap: 1.5rem; max-width: 600px; }
     .io-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
+    .io-section.danger { border-color: rgba(220,50,50,.4); background: rgba(220,50,50,.04); }
+    .io-section.danger .io-section-title { color: #f56565; }
+    .io-btn.danger { background: rgba(220,50,50,.15); color: #f56565; border: 1px solid rgba(220,50,50,.3); }
+    .io-btn.danger:hover { background: rgba(220,50,50,.3); }
     .io-section-title { font-size: 1rem; font-weight: 700; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
     .io-section-desc { font-size: .85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.5; }
     .io-btn {
@@ -515,6 +519,16 @@
           <button class="io-btn primary" onclick="handleUrlImport()">Import</button>
         </div>
         <div class="import-result" id="urlImportResult"></div>
+      </div>
+
+      <div class="io-section danger">
+        <div class="io-section-title">⚠ Danger Zone</div>
+        <div class="io-section-desc">These actions cannot be undone. Export a backup first if you want to keep your data.</div>
+        <div class="io-btn-row">
+          <button class="io-btn danger" onclick="clearList('watched')">🗑 Clear Watched List</button>
+          <button class="io-btn danger" onclick="clearList('watchlist')">🗑 Clear Watchlist</button>
+          <button class="io-btn danger" onclick="clearAll()">💥 Clear All Shows</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1325,6 +1339,28 @@ async function handleUrlImport() {
   } finally {
     spinner.classList.remove('active');
   }
+}
+
+// ── Clear / Delete ────────────────────────────────────────────────────────────
+function clearList(which) {
+  const isWatched = which === 'watched';
+  const label = isWatched ? 'Watched' : 'Watchlist';
+  const count = shows.filter(s => s.wantToWatch !== isWatched).length;
+  if (!count) { toast('ℹ', `Your ${label} is already empty.`); return; }
+  if (!confirm(`Remove all ${count} show${count !== 1 ? 's' : ''} from your ${label}? This cannot be undone.`)) return;
+  shows = shows.filter(s => s.wantToWatch === isWatched);
+  save();
+  renderLists();
+  toast('🗑', `${label} cleared`);
+}
+
+function clearAll() {
+  if (!shows.length) { toast('ℹ', 'Nothing to clear.'); return; }
+  if (!confirm(`Remove all ${shows.length} show${shows.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+  shows = [];
+  save();
+  renderLists();
+  toast('🗑', 'All shows cleared');
 }
 
 // ── Poster fetcher ────────────────────────────────────────────────────────────
