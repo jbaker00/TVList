@@ -1306,12 +1306,24 @@ function handleFileImport(e) {
 
 // ── URL import ────────────────────────────────────────────────────────────────
 function normalizeImportUrl(url) {
-  // Google Drive: https://drive.google.com/file/d/{ID}/view → direct download
+  // Google Drive: /file/d/{ID}/...
   const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-  if (driveMatch) return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
-  // Google Sheets: https://docs.google.com/spreadsheets/d/{ID}/... → CSV export
+  if (driveMatch) {
+    const direct = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+    return `https://corsproxy.io/?${encodeURIComponent(direct)}`;
+  }
+  // Google Drive: open?id={ID}
+  const driveOpenMatch = url.match(/drive\.google\.com\/open\?.*?id=([^&#]+)/);
+  if (driveOpenMatch) {
+    const direct = `https://drive.google.com/uc?export=download&id=${driveOpenMatch[1]}`;
+    return `https://corsproxy.io/?${encodeURIComponent(direct)}`;
+  }
+  // Google Sheets: /spreadsheets/d/{ID}/... → CSV export
   const sheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([^/?#]+)/);
-  if (sheetsMatch) return `https://docs.google.com/spreadsheets/d/${sheetsMatch[1]}/export?format=csv`;
+  if (sheetsMatch) {
+    const direct = `https://docs.google.com/spreadsheets/d/${sheetsMatch[1]}/export?format=csv`;
+    return `https://corsproxy.io/?${encodeURIComponent(direct)}`;
+  }
   return url;
 }
 
